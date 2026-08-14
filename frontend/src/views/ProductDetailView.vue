@@ -30,12 +30,17 @@ async function load() {
   qty.value = 1
 }
 
-function addToCart() {
+async function addToCart() {
   if (!product.value) return
   try {
-    cart.addProduct(product.value, qty.value)
+    await cart.addProduct(product.value, qty.value)
     message.value = t('added_to_cart')
   } catch (e) {
+    if (e instanceof Error && e.message === 'LOGIN_REQUIRED') return
+    if (e instanceof Error && e.message.startsWith('STOCK:')) {
+      error.value = t('only_in_stock', { n: e.message.replace('STOCK:', '') })
+      return
+    }
     error.value = e instanceof Error ? e.message : t('could_not_add')
   }
 }

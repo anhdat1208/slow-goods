@@ -33,10 +33,10 @@ class AiAssistantService
     {
         $catalogText = $catalog->map(function (Product $product) {
             return sprintf(
-                'ID:%d | %s | $%s | Category:%s | %s',
+                'ID:%d | %s | %s₫ | Category:%s | %s',
                 $product->id,
                 $product->name,
-                $product->price,
+                number_format((float) $product->price, 0, ',', '.'),
                 $product->category?->name,
                 $product->short_description
             );
@@ -90,8 +90,11 @@ class AiAssistantService
             $products = $catalog->filter(fn (Product $p) => $p->category?->slug === 'craft-diy');
         } elseif (Str::contains($q, ['phone', 'screen', 'digital', 'slow', 'điện thoại', 'màn hình'])) {
             $products = $catalog->filter(fn (Product $p) => in_array($p->category?->slug, ['slow-living', 'desk', 'books'], true));
-        } elseif (preg_match('/(?:under|dưới)\s*\$?\s*(\d+)/u', $q, $m)) {
-            $max = (float) $m[1];
+        } elseif (preg_match('/(?:under|dưới)\s*\$?\s*([\d\.\,]+)/u', $q, $m)) {
+            $max = (float) str_replace(['.', ','], '', $m[1]);
+            if ($max < 1000) {
+                $max *= 25000;
+            }
             $products = $catalog->filter(fn (Product $p) => (float) $p->price <= $max);
         } else {
             $products = $catalog->where('is_featured', true);
@@ -106,7 +109,11 @@ class AiAssistantService
             $products = $catalog->take(3)->values();
         }
 
-        $lines = $products->map(fn (Product $p) => "- {$p->name} (\${$p->price}) — {$p->short_description}")->implode("\n");
+        $lines = $products->map(function (Product $p) {
+            $price = number_format((float) $p->price, 0, ',', '.').'₫';
+
+            return "- {$p->name} ({$price}) — {$p->short_description}";
+        })->implode("\n");
 
         $answer = $locale === 'vi'
             ? "Đây là vài gợi ý điềm tĩnh từ catalog, dựa trên điều bạn hỏi:\n\n{$lines}\n\nÍt màn hình. Nhiều đời sống."

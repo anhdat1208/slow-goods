@@ -101,7 +101,7 @@ onMounted(load)
             <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
         </div>
-        <div class="field"><label>Price</label><input v-model.number="form.price" type="number" step="0.01" required /></div>
+        <div class="field"><label>Price (VND)</label><input v-model.number="form.price" type="number" step="1000" min="0" required /></div>
         <div class="field"><label>Stock</label><input v-model.number="form.stock" type="number" required /></div>
         <div class="field"><label>Image URL</label><input v-model="form.image_url" /></div>
       </div>

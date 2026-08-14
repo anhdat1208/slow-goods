@@ -12,17 +12,23 @@ const emit = defineEmits<{ added: [] }>()
 const { t, locale } = useI18n()
 const localized = computed(() => localizeKit(props.kit, locale.value))
 
-function addKit() {
-  for (const product of props.kit.products) {
-    if (product.stock > 0) {
-      try {
-        cart.addProduct(product, 1)
-      } catch {
-        // skip unavailable
+async function addKit() {
+  try {
+    for (const product of props.kit.products) {
+      if (product.stock > 0) {
+        try {
+          await cart.addProduct(product, 1, { persist: false, openDrawer: false })
+        } catch (e) {
+          if (e instanceof Error && e.message === 'LOGIN_REQUIRED') return
+        }
       }
     }
+    await cart.persist()
+    cart.open = true
+    emit('added')
+  } catch (e) {
+    if (e instanceof Error && e.message === 'LOGIN_REQUIRED') return
   }
-  emit('added')
 }
 </script>
 

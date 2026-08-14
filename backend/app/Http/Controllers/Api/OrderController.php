@@ -12,7 +12,7 @@ class OrderController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $orders = Order::with('items')
+        $orders = Order::with(['items', 'user:id,name,email'])
             ->where('user_id', $request->user()->id)
             ->latest()
             ->paginate(10);
@@ -22,7 +22,7 @@ class OrderController extends Controller
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $order = Order::with('items')
+        $order = Order::with(['items', 'user:id,name,email'])
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
 

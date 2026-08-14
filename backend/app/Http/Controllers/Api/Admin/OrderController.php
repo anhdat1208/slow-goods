@@ -12,7 +12,7 @@ class OrderController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Order::with('items')->latest();
+        $query = Order::with(['items', 'user:id,name,email'])->latest();
 
         if ($status = $request->string('status')->toString()) {
             $query->where('status', $status);

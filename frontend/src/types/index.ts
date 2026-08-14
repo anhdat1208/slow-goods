@@ -62,6 +62,8 @@ export interface Order {
   payment_method: string
   subtotal: string | number
   total: string | number
+  user_id?: number | null
+  user?: { id: number; name: string; email: string } | null
   items?: OrderItem[]
   created_at: string
 }

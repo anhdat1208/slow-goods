@@ -49,8 +49,9 @@ export async function api<T>(
 }
 
 export function money(value: string | number): string {
-  return new Intl.NumberFormat('en-US', {
+  return new Intl.NumberFormat('vi-VN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'VND',
+    maximumFractionDigits: 0,
   }).format(Number(value))
 }

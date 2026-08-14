@@ -22,6 +22,7 @@ onMounted(async () => {
       <p v-if="route.query.confirmed" class="confirm fade-up">{{ t('order_confirmed') }}</p>
       <p class="eyebrow">{{ t('order') }}</p>
       <h2>{{ order.order_number }}</h2>
+      <p class="muted">{{ t('order_account') }}: {{ order.user?.email || auth.user?.email }}</p>
       <p class="muted">{{ t('status') }}: <strong>{{ t('status_' + order.status) }}</strong></p>
 
       <div class="block">

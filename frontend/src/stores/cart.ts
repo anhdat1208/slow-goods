@@ -3,12 +3,20 @@ import { computed, ref, watch } from 'vue'
 import { api } from '../api/client'
 import type { CartItemLocal, Product } from '../types'
 import { useAuthStore } from './auth'
+import router from '../router'
 
 const CART_KEY = 'slow_goods_cart'
+
+type ServerCart = {
+  items: Array<{ id?: number; product_id: number; quantity: number; product: Product }>
+  subtotal?: string
+  total_quantity?: number
+}
 
 export const useCartStore = defineStore('cart', () => {
   const items = ref<CartItemLocal[]>(loadCart())
   const open = ref(false)
+  const persisting = ref(false)
 
   const totalQuantity = computed(() => items.value.reduce((sum, i) => sum + i.quantity, 0))
   const subtotal = computed(() =>
@@ -40,11 +48,59 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
-  function addProduct(product: Product, quantity = 1) {
+  function requireMember(): boolean {
+    const auth = useAuthStore()
+    if (auth.isAuthenticated && auth.token) return true
+    router.push({
+      name: 'login',
+      query: { redirect: router.currentRoute.value.fullPath || '/' },
+    })
+    return false
+  }
+
+  function applyServerCart(data: ServerCart) {
+    items.value = (data.items || []).map((i) => ({
+      product_id: i.product_id,
+      quantity: i.quantity,
+      product: i.product,
+    }))
+  }
+
+  async function persist() {
+    const auth = useAuthStore()
+    if (!auth.token) return
+
+    persisting.value = true
+    try {
+      const data = await api<ServerCart>(
+        '/cart/sync',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            items: items.value.map((i) => ({
+              product_id: i.product_id,
+              quantity: i.quantity,
+            })),
+          }),
+        },
+        auth.token,
+      )
+      applyServerCart(data)
+    } finally {
+      persisting.value = false
+    }
+  }
+
+  async function addProduct(product: Product, quantity = 1, options: { persist?: boolean; openDrawer?: boolean } = {}) {
+    if (!requireMember()) {
+      throw new Error('LOGIN_REQUIRED')
+    }
+
+    const persistNow = options.persist !== false
     const existing = items.value.find((i) => i.product_id === product.id)
     const nextQty = (existing?.quantity || 0) + quantity
     if (nextQty > product.stock) {
-      throw new Error(`Only ${product.stock} in stock`)
+      throw new Error(`STOCK:${product.stock}`)
     }
     if (existing) {
       existing.quantity = nextQty
@@ -52,101 +108,110 @@ export const useCartStore = defineStore('cart', () => {
     } else {
       items.value.push({ product_id: product.id, quantity, product })
     }
-    open.value = true
+    if (options.openDrawer !== false) open.value = true
+    if (persistNow) await persist()
   }
 
-  function setQuantity(productId: number, quantity: number) {
+  async function setQuantity(productId: number, quantity: number) {
+    if (!requireMember()) return
     const item = items.value.find((i) => i.product_id === productId)
     if (!item) return
     const stock = item.product?.stock ?? quantity
     if (quantity < 1) {
-      remove(productId)
+      await remove(productId)
       return
     }
     item.quantity = Math.min(quantity, stock)
+    await persist()
   }
 
-  function increment(productId: number) {
+  async function increment(productId: number) {
+    if (!requireMember()) return
     const item = items.value.find((i) => i.product_id === productId)
     if (!item) return
     const stock = item.product?.stock ?? item.quantity
-    if (item.quantity < stock) item.quantity += 1
+    if (item.quantity < stock) {
+      item.quantity += 1
+      await persist()
+    }
   }
 
-  function decrement(productId: number) {
+  async function decrement(productId: number) {
+    if (!requireMember()) return
     const item = items.value.find((i) => i.product_id === productId)
     if (!item) return
-    if (item.quantity <= 1) remove(productId)
-    else item.quantity -= 1
+    if (item.quantity <= 1) {
+      await remove(productId)
+      return
+    }
+    item.quantity -= 1
+    await persist()
   }
 
-  function remove(productId: number) {
+  async function remove(productId: number) {
+    if (!requireMember()) return
     items.value = items.value.filter((i) => i.product_id !== productId)
+    await persist()
   }
 
   function clear() {
     items.value = []
   }
 
-  async function syncToServer() {
-    const auth = useAuthStore()
-    if (!auth.token || items.value.length === 0) return
-
-    await api(
-      '/cart/sync',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          items: items.value.map((i) => ({
-            product_id: i.product_id,
-            quantity: i.quantity,
-          })),
-        }),
-      },
-      auth.token,
-    )
-  }
-
   async function pullFromServer() {
     const auth = useAuthStore()
     if (!auth.token) return
 
-    const data = await api<{
-      items: Array<{ product_id: number; quantity: number; product: Product }>
-    }>('/cart', {}, auth.token)
+    const data = await api<ServerCart>('/cart', {}, auth.token)
+    applyServerCart(data)
+  }
 
-    if (data.items.length) {
-      items.value = data.items.map((i) => ({
-        product_id: i.product_id,
-        quantity: i.quantity,
-        product: i.product,
-      }))
+  async function adoptAccountCart() {
+    const auth = useAuthStore()
+    if (!auth.token) return
+
+    const local = items.value.map((i) => ({ ...i }))
+    const server = await api<ServerCart>('/cart', {}, auth.token)
+    const merged = new Map<number, CartItemLocal>()
+
+    for (const item of server.items || []) {
+      merged.set(item.product_id, {
+        product_id: item.product_id,
+        quantity: item.quantity,
+        product: item.product,
+      })
     }
+
+    for (const item of local) {
+      const current = merged.get(item.product_id)
+      const stock = item.product?.stock ?? current?.product?.stock ?? item.quantity
+      const qty = Math.min((current?.quantity || 0) + item.quantity, stock)
+      merged.set(item.product_id, {
+        product_id: item.product_id,
+        quantity: qty,
+        product: item.product || current?.product,
+      })
+    }
+
+    items.value = Array.from(merged.values()).filter((i) => i.quantity > 0)
+    await persist()
   }
 
   async function prepareCheckout() {
     const auth = useAuthStore()
-    if (!auth.token) throw new Error('Please sign in to checkout')
+    if (!auth.token) throw new Error('LOGIN_REQUIRED')
+    await persist()
+  }
 
-    await api('/cart', { method: 'DELETE' }, auth.token)
-    await api(
-      '/cart/sync',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          items: items.value.map((i) => ({
-            product_id: i.product_id,
-            quantity: i.quantity,
-          })),
-        }),
-      },
-      auth.token,
-    )
+  function openCart() {
+    if (!requireMember()) return
+    open.value = true
   }
 
   return {
     items,
     open,
+    persisting,
     totalQuantity,
     subtotal,
     addProduct,
@@ -155,8 +220,10 @@ export const useCartStore = defineStore('cart', () => {
     decrement,
     remove,
     clear,
-    syncToServer,
+    persist,
     pullFromServer,
+    adoptAccountCart,
     prepareCheckout,
+    openCart,
   }
 })

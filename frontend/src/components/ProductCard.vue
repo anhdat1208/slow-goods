@@ -13,6 +13,15 @@ const props = defineProps<{ product: Product }>()
 const cart = useCartStore()
 const { t, locale } = useI18n()
 const localized = computed(() => localizeProduct(props.product, locale.value))
+
+async function addToCart() {
+  try {
+    await cart.addProduct(props.product)
+  } catch (e) {
+    if (e instanceof Error && e.message === 'LOGIN_REQUIRED') return
+    if (e instanceof Error && e.message.startsWith('STOCK:')) return
+  }
+}
 </script>
 
 <template>
@@ -31,7 +40,7 @@ const localized = computed(() => localizeProduct(props.product, locale.value))
       <p class="muted">{{ localized.short_description }}</p>
       <div class="bottom">
         <strong>{{ money(product.price) }}</strong>
-        <button class="btn" type="button" @click="cart.addProduct(product)">{{ t('add') }}</button>
+        <button class="btn" type="button" @click="addToCart">{{ t('add') }}</button>
       </div>
     </div>
   </article>

@@ -3,9 +3,11 @@ import { reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { ApiError } from '../api/client'
 import { useAuthStore } from '../stores/auth'
+import { useCartStore } from '../stores/cart'
 import { useI18n } from '../i18n'
 
 const auth = useAuthStore()
+const cart = useCartStore()
 const router = useRouter()
 const { t } = useI18n()
 const error = ref('')
@@ -21,6 +23,7 @@ async function submit() {
   error.value = ''
   try {
     await auth.register(form)
+    await cart.adoptAccountCart()
     router.push('/')
   } catch (e) {
     error.value = e instanceof ApiError ? Object.values(e.errors || { email: [e.message] }).flat().join(' ') : t('register_failed')
@@ -33,6 +36,7 @@ async function submit() {
     <div class="container narrow">
       <p class="eyebrow">{{ t('join') }}</p>
       <h2>{{ t('create_account') }}</h2>
+      <p class="muted">{{ t('member_login_hint') }}</p>
       <form class="form" @submit.prevent="submit">
         <div class="field"><label>{{ t('name') }}</label><input v-model="form.name" required /></div>
         <div class="field"><label>{{ t('email') }}</label><input v-model="form.email" type="email" required /></div>

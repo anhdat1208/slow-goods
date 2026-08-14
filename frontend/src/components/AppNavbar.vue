@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useCartStore } from '../stores/cart'
 import { useI18n } from '../i18n'
@@ -9,6 +9,15 @@ import LanguageSwitch from './LanguageSwitch.vue'
 const auth = useAuthStore()
 const cart = useCartStore()
 const { t } = useI18n()
+const router = useRouter()
+
+function openCart() {
+  if (!auth.isAuthenticated) {
+    router.push({ name: 'login', query: { redirect: '/cart' } })
+    return
+  }
+  cart.openCart()
+}
 </script>
 
 <template>
@@ -27,7 +36,7 @@ const { t } = useI18n()
         <RouterLink v-if="auth.isAuthenticated" to="/wishlist">{{ t('nav_wishlist') }}</RouterLink>
         <RouterLink v-if="auth.isAuthenticated" to="/profile">{{ t('nav_account') }}</RouterLink>
         <RouterLink v-else to="/login">{{ t('nav_signin') }}</RouterLink>
-        <button class="cart-btn" type="button" @click="cart.open = true">
+        <button class="cart-btn" type="button" @click="openCart">
           {{ t('nav_cart') }}
           <span>{{ cart.totalQuantity }}</span>
         </button>

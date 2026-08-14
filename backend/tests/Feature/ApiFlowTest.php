@@ -27,7 +27,7 @@ class ApiFlowTest extends TestCase
             'slug' => 'reading-journal-'.uniqid(),
             'description' => 'A calm journal',
             'short_description' => 'Calm journal',
-            'price' => 26.00,
+            'price' => 10000,
             'stock' => 10,
             'sku' => 'SKU-'.uniqid(),
             'image_url' => 'https://example.com/p.jpg',
@@ -66,7 +66,7 @@ class ApiFlowTest extends TestCase
     public function test_cart_checkout_and_stock(): void
     {
         $user = User::factory()->create();
-        $product = $this->product(['stock' => 5, 'price' => 10]);
+        $product = $this->product(['stock' => 5, 'price' => 10000]);
 
         $this->actingAs($user, 'sanctum')
             ->postJson('/api/cart/items', ['product_id' => $product->id, 'quantity' => 2])
@@ -83,8 +83,13 @@ class ApiFlowTest extends TestCase
                 'payment_method' => 'cash_on_delivery',
             ])
             ->assertCreated()
-            ->assertJsonPath('total', '20.00');
+            ->assertJsonPath('total', '20000.00')
+            ->assertJsonPath('user_id', $user->id);
 
+        $this->assertDatabaseHas('orders', [
+            'user_id' => $user->id,
+            'total' => '20000.00',
+        ]);
         $this->assertDatabaseHas('products', ['id' => $product->id, 'stock' => 3]);
         $this->assertDatabaseCount('cart_items', 0);
         $this->assertDatabaseCount('orders', 1);
@@ -113,6 +118,31 @@ class ApiFlowTest extends TestCase
                 'payment_method' => 'demo_card',
             ])
             ->assertStatus(422);
+    }
+
+    public function test_cart_belongs_to_member_and_guest_cannot_add(): void
+    {
+        $alice = User::factory()->create();
+        $bob = User::factory()->create();
+        $product = $this->product(['stock' => 5]);
+
+        $this->postJson('/api/cart/items', ['product_id' => $product->id, 'quantity' => 1])
+            ->assertUnauthorized();
+
+        $this->actingAs($alice, 'sanctum')
+            ->postJson('/api/cart/items', ['product_id' => $product->id, 'quantity' => 2])
+            ->assertCreated();
+
+        $this->actingAs($bob, 'sanctum')
+            ->getJson('/api/cart')
+            ->assertOk()
+            ->assertJsonPath('total_quantity', 0);
+
+        $this->actingAs($alice, 'sanctum')
+            ->getJson('/api/cart')
+            ->assertOk()
+            ->assertJsonPath('total_quantity', 2)
+            ->assertJsonPath('items.0.product_id', $product->id);
     }
 
     public function test_admin_access_is_protected(): void

@@ -23,6 +23,7 @@ onMounted(async () => {
         <div>
           <p class="eyebrow">{{ t('orders') }}</p>
           <h2>{{ t('order_history') }}</h2>
+          <p class="muted">{{ t('order_account') }}: {{ auth.user?.email }}</p>
         </div>
       </div>
       <div v-if="!orders.length" class="muted">{{ t('no_orders') }}</div>

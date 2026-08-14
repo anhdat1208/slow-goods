@@ -99,10 +99,13 @@ class CartController extends Controller
     public function sync(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'items' => ['required', 'array'],
+            'items' => ['present', 'array'],
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
         ]);
+
+        $userId = $request->user()->id;
+        $keepIds = [];
 
         foreach ($data['items'] as $row) {
             $product = Product::where('is_active', true)->find($row['product_id']);
@@ -110,22 +113,25 @@ class CartController extends Controller
                 continue;
             }
 
-            $item = CartItem::firstOrNew([
-                'user_id' => $request->user()->id,
-                'product_id' => $product->id,
-            ]);
-
             $qty = min($row['quantity'], $product->stock);
             if ($qty < 1) {
-                if ($item->exists) {
-                    $item->delete();
-                }
                 continue;
             }
 
-            $item->quantity = $qty;
-            $item->save();
+            $item = CartItem::updateOrCreate(
+                [
+                    'user_id' => $userId,
+                    'product_id' => $product->id,
+                ],
+                ['quantity' => $qty]
+            );
+
+            $keepIds[] = $item->id;
         }
+
+        CartItem::where('user_id', $userId)
+            ->when($keepIds, fn ($q) => $q->whereNotIn('id', $keepIds))
+            ->delete();
 
         return $this->index($request);
     }

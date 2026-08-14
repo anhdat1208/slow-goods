@@ -20,7 +20,7 @@ async function submit() {
   error.value = ''
   try {
     await auth.login(form.email, form.password)
-    await cart.syncToServer()
+    await cart.adoptAccountCart()
     await wishlist.fetch()
     router.push(String(route.query.redirect || '/'))
   } catch (e) {
@@ -34,6 +34,8 @@ async function submit() {
     <div class="container narrow">
       <p class="eyebrow">{{ t('welcome_back') }}</p>
       <h2>{{ t('sign_in') }}</h2>
+      <p class="muted">{{ t('login_for_cart') }}</p>
+      <p class="muted">{{ t('demo_member') }}</p>
       <form class="form" @submit.prevent="submit">
         <div class="field"><label>{{ t('email') }}</label><input v-model="form.email" type="email" required /></div>
         <div class="field"><label>{{ t('password') }}</label><input v-model="form.password" type="password" required /></div>
