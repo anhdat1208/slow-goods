@@ -27,9 +27,18 @@ class RouteServiceProvider extends ServiceProvider
         $this->configureRateLimiting();
 
         $this->routes(function () {
+            $apiRoutes = base_path('routes/api.php');
+
             Route::middleware('api')
                 ->prefix('api')
-                ->group(base_path('routes/api.php'));
+                ->group($apiRoutes);
+
+            // vercel-php can forward requests with a stripped base path in some
+            // deployments (e.g. /products instead of /api/products). Register an
+            // unprefixed API group only on Vercel to avoid 404s in that case.
+            if (env('VERCEL')) {
+                Route::middleware('api')->group($apiRoutes);
+            }
 
             Route::middleware('web')
                 ->group(base_path('routes/web.php'));
