@@ -14,9 +14,10 @@ class CheckoutService
     public function checkout(User $user, array $data): Order
     {
         return DB::transaction(function () use ($user, $data) {
+            // Avoid lockForUpdate(): Neon/PgBouncer pooler on Vercel aborts the
+            // transaction (SQLSTATE 25P02). Stock is still guarded atomically below.
             $cartItems = CartItem::with('product')
                 ->where('user_id', $user->id)
-                ->lockForUpdate()
                 ->get();
 
             if ($cartItems->isEmpty()) {
@@ -29,7 +30,7 @@ class CheckoutService
             $orderItems = [];
 
             foreach ($cartItems as $item) {
-                $product = Product::where('id', $item->product_id)->lockForUpdate()->first();
+                $product = Product::query()->where('id', $item->product_id)->first();
 
                 if (! $product || ! $product->is_active) {
                     throw ValidationException::withMessages([
@@ -40,6 +41,18 @@ class CheckoutService
                 if ($product->stock < $item->quantity) {
                     throw ValidationException::withMessages([
                         'cart' => ["Insufficient stock for \"{$product->name}\". Available: {$product->stock}."],
+                    ]);
+                }
+
+                $affected = Product::query()
+                    ->where('id', $product->id)
+                    ->where('is_active', true)
+                    ->where('stock', '>=', $item->quantity)
+                    ->decrement('stock', $item->quantity);
+
+                if ($affected === 0) {
+                    throw ValidationException::withMessages([
+                        'cart' => ["Insufficient stock for \"{$product->name}\"."],
                     ]);
                 }
 
@@ -54,8 +67,6 @@ class CheckoutService
                     'quantity' => $item->quantity,
                     'line_total' => $lineTotal,
                 ];
-
-                $product->decrement('stock', $item->quantity);
             }
 
             $order = Order::create([
