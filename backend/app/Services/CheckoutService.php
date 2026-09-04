@@ -69,6 +69,8 @@ class CheckoutService
                 'city' => $data['city'],
                 'postal_code' => $data['postal_code'],
                 'payment_method' => $data['payment_method'],
+                'payment_status' => Order::PAYMENT_PENDING,
+                'paid_at' => null,
                 'subtotal' => $subtotal,
                 'total' => $subtotal,
             ]);
