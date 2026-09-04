@@ -76,6 +76,11 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => 'prefer',
+            // Pooled Postgres (Neon/PgBouncer transaction mode) reuses backends
+            // between requests, which can collide on PDO prepared statement names.
+            'options' => env('DB_EMULATE_PREPARES', false)
+                ? [PDO::ATTR_EMULATE_PREPARES => true]
+                : [],
         ],
 
         'sqlsrv' => [
