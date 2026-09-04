@@ -246,6 +246,82 @@ class SePayPaymentTest extends TestCase
         $this->assertDatabaseCount('sepay_transactions', 0);
     }
 
+    public function test_webhook_without_accept_json_does_not_redirect(): void
+    {
+        $payload = $this->webhookPayload([
+            'id' => 1009,
+            'content' => 'SG-NOACCEPT',
+        ]);
+
+        $this->call(
+            'POST',
+            '/api/sepay/webhook',
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_AUTHORIZATION' => 'Apikey wrong-token',
+            ],
+            json_encode($payload),
+        )->assertStatus(422)->assertJson([
+            'message' => 'Invalid Token',
+        ]);
+    }
+
+    public function test_bank_stripping_hyphen_from_transfer_content_still_matches(): void
+    {
+        $user = User::factory()->create();
+        $order = $this->createPendingBankOrder($user);
+        $spaced = str_replace('SG-', 'SG ', $order->order_number);
+
+        $this->postWebhook($this->webhookPayload([
+            'id' => 1010,
+            'content' => 'MBVCB.1.2.'.$spaced.'.CT tu 0921 VO ANH DAT',
+            'description' => 'BankAPINotify '.$spaced,
+            'transferAmount' => 20000,
+        ]))->assertNoContent();
+
+        $order->refresh();
+
+        $this->assertSame(Order::PAYMENT_PAID, $order->payment_status);
+    }
+
+    public function test_hmac_signature_is_accepted(): void
+    {
+        $user = User::factory()->create();
+        $order = $this->createPendingBankOrder($user);
+
+        $payload = $this->webhookPayload([
+            'id' => 1011,
+            'content' => 'Thanh toan '.$order->order_number,
+            'description' => 'Thanh toan '.$order->order_number,
+            'transferAmount' => 20000,
+        ]);
+
+        $body = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        $timestamp = (string) time();
+        $signature = 'sha256='.hash_hmac('sha256', $timestamp.'.'.$body, $this->webhookToken);
+
+        $this->call(
+            'POST',
+            '/api/sepay/webhook',
+            [],
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_ACCEPT' => 'application/json',
+                'HTTP_X_SEPAY_SIGNATURE' => $signature,
+                'HTTP_X_SEPAY_TIMESTAMP' => $timestamp,
+            ],
+            $body,
+        )->assertNoContent();
+
+        $order->refresh();
+        $this->assertSame(Order::PAYMENT_PAID, $order->payment_status);
+    }
+
     public function test_payment_status_endpoint_requires_owner(): void
     {
         $owner = User::factory()->create();
