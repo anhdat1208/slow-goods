@@ -65,7 +65,11 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
-            'url' => env('DATABASE_URL'),
+            // Prefer Neon unpooled URL on Vercel so PDO transactions work.
+            // Integration-managed DATABASE_URL often points at the -pooler host.
+            'url' => env('DATABASE_URL_UNPOOLED')
+                ?: env('POSTGRES_URL_NON_POOLING')
+                ?: env('DATABASE_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),
             'database' => env('DB_DATABASE', 'forge'),
@@ -75,7 +79,14 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => 'prefer',
+            // Neon requires TLS in production; keep prefer locally for Docker Postgres.
+            'sslmode' => env('DB_SSLMODE', env('VERCEL') ? 'require' : 'prefer'),
+            // Emulate prepares on Vercel/Neon to avoid PDO prepared-statement collisions
+            // across reused serverless connections (often surfaces as SQLSTATE 25P02).
+            'options' => filter_var(
+                env('DB_EMULATE_PREPARES', env('VERCEL') ? true : false),
+                FILTER_VALIDATE_BOOLEAN
+            ) ? [PDO::ATTR_EMULATE_PREPARES => true] : [],
         ],
 
         'sqlsrv' => [
