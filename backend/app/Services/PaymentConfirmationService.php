@@ -17,10 +17,11 @@ class PaymentConfirmationService
     {
         try {
             DB::transaction(function () use ($orderNumber, $data) {
+                // Avoid lockForUpdate() — Neon pooler on Vercel aborts transactions (25P02).
+                // Idempotency relies on unique (provider, provider_transaction_id).
                 $existing = PaymentTransaction::query()
                     ->where('provider', self::PROVIDER)
                     ->where('provider_transaction_id', (string) $data->id)
-                    ->lockForUpdate()
                     ->first();
 
                 if ($existing) {
@@ -34,7 +35,6 @@ class PaymentConfirmationService
 
                 $order = Order::query()
                     ->where('order_number', $orderNumber)
-                    ->lockForUpdate()
                     ->first();
 
                 if (! $order) {
@@ -101,10 +101,20 @@ class PaymentConfirmationService
                     'raw_payload' => $this->payloadArray($data),
                 ]);
 
-                $order->update([
-                    'payment_status' => Order::PAYMENT_PAID,
-                    'paid_at' => now(),
-                ]);
+                $updated = Order::query()
+                    ->where('id', $order->id)
+                    ->where('payment_status', Order::PAYMENT_PENDING)
+                    ->update([
+                        'payment_status' => Order::PAYMENT_PAID,
+                        'paid_at' => now(),
+                    ]);
+
+                if ($updated === 0) {
+                    Log::info('SePay webhook: order already marked paid concurrently', [
+                        'order_id' => $order->id,
+                        'provider_transaction_id' => $data->id,
+                    ]);
+                }
             });
         } catch (Throwable $e) {
             Log::error('SePay payment confirmation failed', [
