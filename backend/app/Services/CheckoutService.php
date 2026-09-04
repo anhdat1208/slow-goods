@@ -13,19 +13,19 @@ class CheckoutService
 {
     public function checkout(User $user, array $data): Order
     {
-        return DB::transaction(function () use ($user, $data) {
-            // Avoid lockForUpdate(): Neon/PgBouncer pooler on Vercel aborts the
-            // transaction (SQLSTATE 25P02). Stock is still guarded atomically below.
-            $cartItems = CartItem::with('product')
-                ->where('user_id', $user->id)
-                ->get();
+        // Read the cart outside the write transaction. Nested SELECT/eager-load
+        // inside DB::transaction has been aborting on Vercel + Neon (SQLSTATE 25P02).
+        $cartItems = CartItem::query()
+            ->where('user_id', $user->id)
+            ->get();
 
-            if ($cartItems->isEmpty()) {
-                throw ValidationException::withMessages([
-                    'cart' => ['Your cart is empty.'],
-                ]);
-            }
+        if ($cartItems->isEmpty()) {
+            throw ValidationException::withMessages([
+                'cart' => ['Your cart is empty.'],
+            ]);
+        }
 
+        return DB::transaction(function () use ($user, $data, $cartItems) {
             $subtotal = 0;
             $orderItems = [];
 
@@ -34,7 +34,7 @@ class CheckoutService
 
                 if (! $product || ! $product->is_active) {
                     throw ValidationException::withMessages([
-                        'cart' => ["Product \"{$item->product?->name}\" is unavailable."],
+                        'cart' => ['Product is unavailable.'],
                     ]);
                 }
 

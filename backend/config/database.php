@@ -75,12 +75,14 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => 'prefer',
-            // Pooled Postgres (Neon/PgBouncer transaction mode) reuses backends
-            // between requests, which can collide on PDO prepared statement names.
-            'options' => env('DB_EMULATE_PREPARES', false)
-                ? [PDO::ATTR_EMULATE_PREPARES => true]
-                : [],
+            // Neon requires TLS in production; keep prefer locally for Docker Postgres.
+            'sslmode' => env('DB_SSLMODE', env('VERCEL') ? 'require' : 'prefer'),
+            // Emulate prepares on Vercel/Neon to avoid PDO prepared-statement collisions
+            // across reused serverless connections (often surfaces as SQLSTATE 25P02).
+            'options' => filter_var(
+                env('DB_EMULATE_PREPARES', env('VERCEL') ? true : false),
+                FILTER_VALIDATE_BOOLEAN
+            ) ? [PDO::ATTR_EMULATE_PREPARES => true] : [],
         ],
 
         'sqlsrv' => [
