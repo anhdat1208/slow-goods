@@ -35,6 +35,7 @@ onMounted(async () => {
           </div>
           <div class="side">
             <span class="status">{{ t('status_' + order.status) }}</span>
+            <span class="status">{{ t('payment_status_' + (order.payment_status || 'pending')) }}</span>
             <strong>{{ money(order.total) }}</strong>
           </div>
         </RouterLink>

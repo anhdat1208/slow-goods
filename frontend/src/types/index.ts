@@ -60,12 +60,30 @@ export interface Order {
   city: string
   postal_code: string
   payment_method: string
+  payment_status: string
+  paid_at?: string | null
   subtotal: string | number
   total: string | number
   user_id?: number | null
   user?: { id: number; name: string; email: string } | null
   items?: OrderItem[]
   created_at: string
+}
+
+export interface OrderPaymentStatus {
+  order_id: number
+  order_number: string
+  payment_method: string
+  payment_status: string
+  amount: string | number
+  paid_at?: string | null
+  payment?: {
+    bank_name: string
+    account_number: string
+    account_holder: string
+    qr_image_url: string
+    transfer_content: string
+  }
 }
 
 export interface OrderItem {

@@ -114,6 +114,9 @@ class DatabaseSeeder extends Seeder
             ['category' => 'desk', 'name' => 'Brass Paperweight', 'slug' => 'brass-paperweight', 'sku' => 'DK-003', 'price' => 525000, 'stock' => 40, 'featured' => false, 'short' => 'Solid brass desk weight.', 'desc' => 'A simple cast brass form that keeps letters and pages in place.', 'image' => 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=800&q=80'],
             ['category' => 'desk', 'name' => 'Ceramic Pen Cup', 'slug' => 'ceramic-pen-cup', 'sku' => 'DK-004', 'price' => 475000, 'stock' => 48, 'featured' => false, 'short' => 'Unglazed ceramic cup for tools.', 'desc' => 'A quiet cylinder for pens, pencils, and scissors on a calm desk.', 'image' => 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&q=80'],
             ['category' => 'desk', 'name' => 'Cork Desk Mat', 'slug' => 'cork-desk-mat', 'sku' => 'DK-005', 'price' => 1125000, 'stock' => 30, 'featured' => false, 'short' => 'Natural cork writing surface.', 'desc' => 'A soft cork mat that protects the desk and softens the sound of writing.', 'image' => 'https://images.unsplash.com/photo-1593062096033-9a26b09da705?w=800&q=80'],
+
+            // Dedicated low-value product for end-to-end bank-transfer payment testing.
+            ['category' => 'desk', 'name' => '[TEST] Bank Transfer Payment', 'slug' => 'test-bank-transfer-payment', 'sku' => 'TEST-PAY-001', 'price' => 20000, 'stock' => 999, 'featured' => false, 'short' => 'Test product for SePay bank-transfer payments (20,000 VND).', 'desc' => 'Dedicated test SKU for verifying bank-transfer checkout, VietQR payment, and SePay webhook confirmation. Not a retail product.', 'image' => 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=800&q=80'],
         ];
 
         foreach ($products as $product) {

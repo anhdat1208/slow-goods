@@ -27,7 +27,10 @@ onMounted(load)
     <div v-for="order in orders" :key="order.id" class="row">
       <div>
         <strong>{{ order.order_number }}</strong>
-        <p class="muted">{{ order.user?.email || order.email }} · {{ order.full_name }} · {{ money(order.total) }}</p>
+        <p class="muted">
+          {{ order.user?.email || order.email }} · {{ order.full_name }} · {{ money(order.total) }}
+          · {{ order.payment_method }} / {{ order.payment_status }}
+        </p>
       </div>
       <select :value="order.status" @change="updateStatus(order, ($event.target as HTMLSelectElement).value)">
         <option v-for="status in statuses" :key="status" :value="status">{{ status }}</option>

@@ -184,6 +184,11 @@ export const productVi: Record<string, { name: string; short: string; desc: stri
     short: 'Mặt viết bần tự nhiên.',
     desc: 'Thảm bần mềm bảo vệ bàn và làm êm tiếng viết.',
   },
+  'test-bank-transfer-payment': {
+    name: '[TEST] Thanh toán chuyển khoản',
+    short: 'Sản phẩm test thanh toán SePay (20.000đ).',
+    desc: 'SKU test để kiểm tra checkout chuyển khoản, VietQR và webhook SePay. Không phải sản phẩm bán lẻ.',
+  },
 }
 
 export function localizeCategory(category: Category, locale: Locale): Category {

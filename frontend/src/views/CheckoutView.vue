@@ -40,7 +40,11 @@ async function submit() {
       auth.token,
     )
     cart.clear()
-    router.push({ name: 'order', params: { id: order.id }, query: { confirmed: '1' } })
+    if (order.payment_method === 'bank_transfer') {
+      router.push({ name: 'payment', params: { id: order.id } })
+    } else {
+      router.push({ name: 'order', params: { id: order.id }, query: { confirmed: '1' } })
+    }
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : t('checkout_failed')
     if (e instanceof ApiError && e.errors) {
@@ -73,6 +77,7 @@ async function submit() {
             <label>{{ t('payment_method') }}</label>
             <select v-model="form.payment_method">
               <option value="cash_on_delivery">{{ t('pay_cod') }}</option>
+              <option value="bank_transfer">{{ t('pay_bank_transfer') }}</option>
               <option value="demo_card">{{ t('pay_card') }}</option>
             </select>
           </div>
