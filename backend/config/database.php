@@ -81,12 +81,12 @@ return [
             'search_path' => 'public',
             // Neon requires TLS in production; keep prefer locally for Docker Postgres.
             'sslmode' => env('DB_SSLMODE', env('VERCEL') ? 'require' : 'prefer'),
-            // Emulate prepares on Vercel/Neon to avoid PDO prepared-statement collisions
-            // across reused serverless connections (often surfaces as SQLSTATE 25P02).
-            'options' => filter_var(
-                env('DB_EMULATE_PREPARES', env('VERCEL') ? true : false),
-                FILTER_VALIDATE_BOOLEAN
-            ) ? [PDO::ATTR_EMULATE_PREPARES => true] : [],
+            // Keep native PDO prepares by default. Emulated prepares bind booleans as
+            // integers (is_active = 1), which Postgres rejects. Only enable explicitly
+            // if a pooled connection still requires it.
+            'options' => filter_var(env('DB_EMULATE_PREPARES', false), FILTER_VALIDATE_BOOLEAN)
+                ? [PDO::ATTR_EMULATE_PREPARES => true]
+                : [],
         ],
 
         'sqlsrv' => [
