@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\Request;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -44,5 +45,22 @@ class Handler extends ExceptionHandler
         $this->reportable(function (Throwable $e) {
             //
         });
+    }
+
+    /**
+     * Always treat API / SePay webhook traffic as JSON so auth/validation
+     * failures never become HTML 302 redirects.
+     */
+    protected function shouldReturnJson($request, Throwable $e): bool
+    {
+        if ($request instanceof Request && (
+            $request->is('api/*')
+            || $request->is('sepay/*')
+            || $request->expectsJson()
+        )) {
+            return true;
+        }
+
+        return parent::shouldReturnJson($request, $e);
     }
 }
